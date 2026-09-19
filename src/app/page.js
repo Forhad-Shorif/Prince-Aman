@@ -8,11 +8,11 @@ import Modal from "./components/Modal";
 export default function Home() {
   const [level, setLevel] = useState(1);
   const [wins, setWins] = useState(0);
-  const [totalCoins, setTotalCoins] = useState(0); // সেভ হওয়া টোটাল কয়েন
-  const [roundCoins, setRoundCoins] = useState(0); // চলতি ম্যাচের কয়েন
+  const [totalCoins, setTotalCoins] = useState(0);
+  const [roundCoins, setRoundCoins] = useState(0);
   const [speed, setSpeed] = useState(0);
   const [progress, setProgress] = useState(0);
-  const [trackLength, setTrackLength] = useState(500);
+  const [trackLength, setTrackLength] = useState(1000);
   const [highScore, setHighScore] = useState(0);
 
   const [gameState, setGameState] = useState("PLAYING");
@@ -21,21 +21,24 @@ export default function Home() {
   const [steerValue, setSteerValue] = useState(0);
   const [gameKey, setGameKey] = useState(0);
 
-  // ১. সেভ হওয়া ডাটা লোড করা
+  // ১. লিঙ্কে প্রথম প্রবেশের সাথে সাথে ব্রাউজার (localStorage) থেকে সেভ করা ডাটা লোড করা
   useEffect(() => {
-    const savedWins = localStorage.getItem("r15_wins");
-    const savedCoins = localStorage.getItem("r15_coins");
-    const savedLevel = localStorage.getItem("r15_level");
-    const savedHighScore = localStorage.getItem("r15_highscore");
+    const savedWins = parseInt(localStorage.getItem("r15_wins") || "0", 10);
+    const savedCoins = parseInt(localStorage.getItem("r15_coins") || "0", 10);
+    const savedLevel = parseInt(localStorage.getItem("r15_level") || "1", 10);
+    const savedHighScore = parseInt(localStorage.getItem("r15_highscore") || "0", 10);
 
-    if (savedWins) setWins(parseInt(savedWins));
-    if (savedCoins) setTotalCoins(parseInt(savedCoins)); // মোট কয়েন সেভ
-    if (savedLevel) setLevel(parseInt(savedLevel));
-    if (savedHighScore) setHighScore(parseInt(savedHighScore));
+    // শুধু ভ্যালিড সংখ্যা হলে মান সেট হবে (কখনো কমবে না বা রিসেট হবে না)
+    if (!isNaN(savedWins)) setWins(savedWins);
+    if (!isNaN(savedCoins)) setTotalCoins(savedCoins);
+    if (!isNaN(savedLevel) && savedLevel > 0) setLevel(savedLevel);
+    if (!isNaN(savedHighScore)) setHighScore(savedHighScore);
   }, []);
 
+  // বর্তমান ম্যাচের রিয়েল-টাইম স্কোর
   const currentScore = Math.floor(progress / 10) + roundCoins * 10;
 
+  // ২. হাই স্কোর চেক ও স্থায়ীভাবে সেভ (হাই স্কোর শুধু বাড়লেই সেভ হবে, কখনো কমবে না)
   useEffect(() => {
     if (currentScore > highScore) {
       setHighScore(currentScore);
@@ -43,7 +46,6 @@ export default function Home() {
     }
   }, [currentScore, highScore]);
 
-  // ২. ক্যানভাস থেকে ম্যাট্রিক আপডেট পাওয়া
   const handleUpdateMetrics = (c, s, p, tl) => {
     setRoundCoins(c);
     setSpeed(s);
@@ -51,18 +53,21 @@ export default function Home() {
     setTrackLength(tl);
   };
 
-  // ৩. উইন হলে মোট কয়েন আপডেট ও সেভ করা
+  // ৩. উইন হলে টোটাল কয়েন এবং লেভেল আপডেট (কখনো কমবে না)
   const handleWin = () => {
     setGameState("WIN");
+
     const newWins = wins + 1;
-    const newTotalCoins = totalCoins + roundCoins; // আগের মোট কয়েন + এই রাউন্ডের কয়েন
+    const newTotalCoins = totalCoins + roundCoins;
 
     setWins(newWins);
     setTotalCoins(newTotalCoins);
 
+    // ব্রাউজারে স্থায়ী সেভ
     localStorage.setItem("r15_wins", newWins.toString());
-    localStorage.setItem("r15_coins", newTotalCoins.toString()); // মোট কয়েন সেভ করা হচ্ছে
+    localStorage.setItem("r15_coins", newTotalCoins.toString());
 
+    // প্রতি ৩টি বিজয়ে ১ লেভেল বাড়বে
     if (newWins % 3 === 0) {
       const nextLevel = level + 1;
       setLevel(nextLevel);
@@ -70,7 +75,7 @@ export default function Home() {
     }
   };
 
-  // ৪. ক্র্যাশ করলেও পর্যন্ত জমানো কয়েন টোটাল কয়েনে যোগ হবে
+  // ৪. ক্র্যাশ করলে সংগৃহীত কয়েন স্থায়ীভাবে সেভ হবে
   const handleCrash = () => {
     setGameState("CRASH");
     const newTotalCoins = totalCoins + roundCoins;
@@ -90,7 +95,7 @@ export default function Home() {
   return (
     <main className="relative w-screen h-screen bg-slate-950 overflow-hidden flex items-center justify-center select-none">
       <Dashboard
-        coins={totalCoins} // ড্যাশবোর্ড ও প্রোফাইলে টোটাল কয়েন দেখাবে
+        coins={totalCoins}
         speed={speed}
         level={level}
         wins={wins}
@@ -121,7 +126,7 @@ export default function Home() {
         <Modal
           type={gameState}
           score={currentScore}
-          coins={roundCoins} // মোডালে দেখাবে এই রাউন্ডে কত কয়েন পেলেন
+          coins={roundCoins}
           distance={progress}
           onAction={handleRestart}
         />
